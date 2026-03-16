@@ -24,5 +24,5 @@
 | Plugin-Ökosystem             | Umfangreich                    | Sehr umfangreich                              | Begrenzt                          | Wachsend                          |
 | TypeScript-Unterstützung     | Ja                             | Ja                                            | Ja                                | Ja                                |
 | React-Integration            | Gut                            | Gut                                           | Gut                               | Gut                               |
-| **Kommentar**                | Stabil, viele Funktionen       | Einfach, wenig Features, Plugin-Ökosystem mit | Sehr mächtig, kommerzielle Lizenz | Fork von Mapbox GL JS, mächtig    |
-|                              | "geschwätzig"/viel Boilerplate | viel ungeprüftem Code und Abhängigkeiten      | Performantes Rendering            | (Noch) keine eigenen Projektionen |
+| **Bewertung**                | Stabil, viele Funktionen       | Einfach, wenig Features, Plugin-Ökosystem mit | Sehr mächtig, kommerzielle Lizenz | Fork von Mapbox GL JS, mächtig    |
+|                              | "geschwätzig"/viel Boilerplate | viel ungeprüfter Code und Abhängigkeiten      | Performantes Rendering            | (Noch) keine nutzerdefinierten Projektionen |
