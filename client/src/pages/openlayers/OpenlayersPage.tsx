@@ -1,13 +1,16 @@
 import "./OpenlayersPage.css";
 import { useState } from "react";
-import OpenlayersMap from "./OpenlayersMap.jsx";
-import FeatureTable from "../shared_components/FeatureTable.jsx";
+import OpenlayersMap from "./OpenlayersMap.tsx";
+import FeatureTable from "../shared_components/FeatureTable.tsx";
+import type { KantonFeatureCollection } from "../../types.ts";
 
 // load data
-const kantone = await fetch("/kantone.geojson").then((res) => res.json());
+const kantone: KantonFeatureCollection = (await fetch("/kantone.geojson").then((res) =>
+  res.json(),
+)) as KantonFeatureCollection;
 
 function OpenlayersPage() {
-  const [selectedFeatureID, setSelectedFeatureID] = useState();
+  const [selectedFeatureID, setSelectedFeatureID] = useState<number>();
   return (
     <div id="openlayers-content">
       <OpenlayersMap

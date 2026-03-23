@@ -1,33 +1,43 @@
 import { useCallback, useEffect, useRef } from "react";
-import maplibregl from "maplibre-gl";
+import maplibregl, { GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import buffer from "@turf/buffer";
+import type { Feature, FeatureCollection, Polygon, MultiPolygon } from "geojson";
 
-function SpatialAnalysisMap({ bufferDistance }) {
+interface SpatialAnalysisMapProps {
+  bufferDistance: number;
+}
+
+function SpatialAnalysisMap({ bufferDistance }: SpatialAnalysisMapProps) {
   // create state ref that can be accessed in callbacks
-  const mapRef = useRef();
+  const mapRef = useRef<maplibregl.Map | null>(null);
   // create reference for event handler so we can setup the event listener once in the
   // initial useEffet and update it later
-  const updateRoadBuffers = useRef();
-  // callback to update road buffers
-  updateRoadBuffers.current = useCallback(() => {
+  const updateRoadBuffers = useCallback(() => {
     if (!bufferDistance || bufferDistance === 0) return;
+    const map = mapRef.current;
+    if (!map) return;
     console.log("Updating road buffers:", bufferDistance);
     // TODO: This function recalculates all buffers every time the viewport changes.
     //       This leads to duplicate calculations. We could save effort by implementing basic caching.
-    let roads = mapRef.current.queryRenderedFeatures({ layers: ["road_fill"] });
-    const roadsBuffers = roads.map((r) => buffer(r, bufferDistance, { units: "meters" }));
-    mapRef.current.getSource("roadbuffers").setData({
-      type: "FeatureCollection",
-      features: roadsBuffers,
-    });
+    const roads = map.queryRenderedFeatures({ layers: ["road_fill"] });
+    const roadsBuffers = roads
+      .map((r) => buffer(r, bufferDistance, { units: "meters" }))
+      .filter((b): b is Feature<Polygon | MultiPolygon> => b !== undefined);
+    const source = map.getSource("roadbuffers");
+    if (source instanceof GeoJSONSource) {
+      source.setData({
+        type: "FeatureCollection",
+        features: roadsBuffers,
+      } satisfies FeatureCollection);
+    }
   }, [bufferDistance]);
 
   // initialize map on first render
   useEffect(() => {
     // if map already initialised, exit function
     if (mapRef.current) return;
-    mapRef.current = new maplibregl.Map({
+    const map = new maplibregl.Map({
       container: "spatialanalysis-map-container", // html container id
       style: "https://vectortiles.geo.admin.ch/styles/ch.swisstopo.lightbasemap.vt/style.json", //stylesheet location
       center: [7.642323, 47.534655], // starting position
@@ -37,13 +47,14 @@ function SpatialAnalysisMap({ bufferDistance }) {
         [13, 50],
       ],
     });
+    mapRef.current = map;
     // buffer roads on load and navigation
-    mapRef.current.once("load", () => {
-      mapRef.current.addSource("roadbuffers", {
+    void map.once("load", () => {
+      map.addSource("roadbuffers", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
-      mapRef.current.addLayer({
+      map.addLayer({
         id: "roadbuffers",
         // fill-extrusion because opacity is then rendered on a per layer, not per feature
         // basis, making it much faster and visually more appealing without us having to
@@ -52,16 +63,18 @@ function SpatialAnalysisMap({ bufferDistance }) {
         source: "roadbuffers",
         paint: { "fill-extrusion-color": "#08306B", "fill-extrusion-opacity": 0.5 },
       });
-      updateRoadBuffers.current();
+      updateRoadBuffers();
       // update buffers when viewport changes
-      mapRef.current.on("moveend", () => updateRoadBuffers.current());
+      map.on("moveend", () => {
+        updateRoadBuffers();
+      });
     });
-  }, []);
+  }, [updateRoadBuffers]);
 
   // update road buffers when buffer distance changes
   useEffect(() => {
-    if (mapRef.current && mapRef.current.getSource("roadbuffers")) updateRoadBuffers.current();
-  }, [bufferDistance]);
+    if (mapRef.current?.getSource("roadbuffers")) updateRoadBuffers();
+  }, [bufferDistance, updateRoadBuffers]);
 
   return <div id="spatialanalysis-map-container" />;
 }
