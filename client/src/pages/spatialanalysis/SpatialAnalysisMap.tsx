@@ -2,28 +2,68 @@ import { useCallback, useEffect, useRef } from "react";
 import maplibregl, { GeoJSONSource } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import buffer from "@turf/buffer";
-import type { Feature, FeatureCollection, Polygon, MultiPolygon } from "geojson";
+import type { Feature, FeatureCollection, Position, Polygon, MultiPolygon } from "geojson";
 
 interface SpatialAnalysisMapProps {
   bufferDistance: number;
 }
 
+// FNV-hash over coordinate arrays
+function hashCoordinates(coords: Position | Position[] | Position[][] | Position[][][]): number {
+  const flattenedCoordinates = (coords as number[]).flat(Infinity) as number[];
+  let h = 0x811c9dc5; // FNV offset basis (32-bit)
+  for (const n of flattenedCoordinates) {
+    h ^= (n * 0x100000) | 0;
+    h = Math.imul(h, 0x01000193); // FNV prime (32-bit)
+  }
+  return h >>> 0; // ensure unsigned
+}
+
 function SpatialAnalysisMap({ bufferDistance }: SpatialAnalysisMapProps) {
   // create state ref that can be accessed in callbacks
   const mapRef = useRef<maplibregl.Map | null>(null);
+  // cache: road geometry hash → computed buffer feature
+  const bufferCache = useRef(new Map<number, Feature<Polygon | MultiPolygon>>());
+  const cachedDistance = useRef(0);
+
   // create reference for event handler so we can setup the event listener once in the
   // initial useEffet and update it later
   const updateRoadBuffers = useCallback(() => {
     if (!bufferDistance || bufferDistance === 0) return;
     const map = mapRef.current;
     if (!map) return;
-    console.log("Updating road buffers:", bufferDistance);
-    // TODO: This function recalculates all buffers every time the viewport changes.
-    //       This leads to duplicate calculations. We could save effort by implementing basic caching.
+
+    // invalidate cache when buffer distance changes
+    if (cachedDistance.current !== bufferDistance) {
+      bufferCache.current.clear();
+      cachedDistance.current = bufferDistance;
+    }
+
     const roads = map.queryRenderedFeatures({ layers: ["road_fill"] });
-    const roadsBuffers = roads
-      .map((r) => buffer(r, bufferDistance, { units: "meters" }))
-      .filter((b): b is Feature<Polygon | MultiPolygon> => b !== undefined);
+    const roadsBuffers: Feature<Polygon | MultiPolygon>[] = [];
+    let cacheHits = 0;
+
+    const t0 = performance.now();
+    for (const road of roads) {
+      if (road.geometry.type === "GeometryCollection") continue;
+      const key = hashCoordinates(road.geometry.coordinates);
+      const cached = bufferCache.current.get(key);
+      if (cached) {
+        roadsBuffers.push(cached);
+        cacheHits++;
+        continue;
+      }
+      const buffered = buffer(road, bufferDistance, { units: "meters" });
+      if (buffered) {
+        bufferCache.current.set(key, buffered);
+        roadsBuffers.push(buffered);
+      }
+    }
+    const dt = performance.now() - t0;
+    console.log(
+      `Buffer calculation: ${roads.length} roads, ${cacheHits} cache hits, ${roads.length - cacheHits} computed in ${dt.toFixed(1)}ms`,
+    );
+
     const source = map.getSource("roadbuffers");
     if (source instanceof GeoJSONSource) {
       source.setData({
@@ -80,21 +120,3 @@ function SpatialAnalysisMap({ bufferDistance }: SpatialAnalysisMapProps) {
 }
 
 export default SpatialAnalysisMap;
-
-// sample code for caching, SLOW, needs profiling
-// const bufferCache = useRef(new Set());
-// filter roads that are not in cache
-// roads = roads.filter(
-//   (r) =>
-//     !bufferCache.current.has(
-//       // use coordinates as a simple ID, this is slow for long roads
-//       r.geometry.coordinates.reduce((prev, curr) => prev + curr[0] + curr[1], 0)
-//     )
-// );
-// add new roads to cache
-// roads.forEach((r) =>
-//   // since feature have no ID, we use the sum of coordinates as a simple ID
-//   bufferCache.current.add(
-//     r.geometry.coordinates.reduce((prev, curr) => prev + curr[0] + curr[1], 0)
-//   )
-// );
