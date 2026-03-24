@@ -10,7 +10,8 @@ interface SpatialAnalysisMapProps {
 
 // FNV-hash over coordinate arrays
 function hashCoordinates(coords: Position | Position[] | Position[][] | Position[][][]): number {
-  const flattenedCoordinates = (coords as number[]).flat(Infinity) as number[];
+  // assertion because ts incorrectly infers flattenedCoords type
+  const flattenedCoordinates = coords.flat(Infinity) as number[];
   let h = 0x811c9dc5; // FNV offset basis (32-bit)
   for (const n of flattenedCoordinates) {
     h ^= (n * 0x100000) | 0;
