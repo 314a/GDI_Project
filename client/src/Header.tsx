@@ -1,6 +1,12 @@
 import { NavLink } from "react-router";
+import type { ReactNode } from "react";
 
-function NavButton({ path, children }) {
+interface NavButtonProps {
+  path: string;
+  children: ReactNode;
+}
+
+function NavButton({ path, children }: NavButtonProps) {
   return (
     <NavLink
       to={path}

@@ -1,36 +1,39 @@
-import js from "@eslint/js";
+// @ts-check
+import eslint from "@eslint/js";
+import { defineConfig } from "eslint/config";
+import tseslint from "typescript-eslint";
 import globals from "globals";
-import react from "eslint-plugin-react";
+import reactPlugin from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 
-export default [
-  { ignores: ["dist"] },
+export default defineConfig([
+  eslint.configs.recommended,
+  tseslint.configs.strictTypeChecked,
+  // @ts-expect-error https://github.com/jsx-eslint/eslint-plugin-react/issues/3878
+  reactPlugin.configs.flat.recommended,
+  // @ts-expect-error https://github.com/jsx-eslint/eslint-plugin-react/issues/3878
+  reactPlugin.configs.flat["jsx-runtime"],
+  reactHooks.configs.flat.recommended,
+  reactRefresh.configs.vite,
   {
-    files: ["**/*.{js,jsx}"],
     languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
       parserOptions: {
-        ecmaVersion: "latest",
-        ecmaFeatures: { jsx: true },
-        sourceType: "module",
+        projectService: true,
       },
     },
-    settings: { react: { version: "18.3" } },
-    plugins: {
-      react,
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
+  },
+  {
+    name: "react",
+    files: ["**/*.{ts,tsx}"],
+    ignores: ["dist"],
+    languageOptions: {
+      globals: globals.browser,
     },
+    settings: { react: { version: "detect" } },
     rules: {
-      ...js.configs.recommended.rules,
-      ...react.configs.recommended.rules,
-      ...react.configs["jsx-runtime"].rules,
-      ...reactHooks.configs.recommended.rules,
-      "react/jsx-no-target-blank": "off",
-      "react/prop-types": "off",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "@typescript-eslint/restrict-template-expressions": ["warn", { allowNumber: true }],
     },
   },
-];
+]);
