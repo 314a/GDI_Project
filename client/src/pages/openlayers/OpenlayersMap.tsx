@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import Map from "ol/Map";
 import View from "ol/View";
-import type Feature from "ol/Feature";
 import GeoJSON from "ol/format/GeoJSON";
 import "ol/ol.css";
 import Select from "ol/interaction/Select";
@@ -15,6 +14,7 @@ import Stroke from "ol/style/Stroke";
 import SimpleGeometry from "ol/geom/SimpleGeometry";
 import chroma from "chroma-js";
 import type { KantonFeatureCollection } from "../../types.ts";
+import Feature from "ol/Feature";
 
 interface OpenlayersMapProps {
   featureCollection: KantonFeatureCollection;
@@ -28,11 +28,12 @@ function OpenlayersMap({
   setSelectedFeatureID,
 }: OpenlayersMapProps) {
   // set intial state
-  const [featureLayer, setFeatureLayer] = useState<VectorLayer<Feature>>();
-  const [selectInteraction, setSelectInteraction] = useState<Select>();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments -- default uses `any`; explicit Feature provides stricter typing
+  const featureLayerRef = useRef<VectorLayer<VectorSource<Feature>>>(null);
+  const selectInteractionRef = useRef<Select>(null);
 
   // create state ref that can be accessed in callbacks
-  const mapRef = useRef<Map>();
+  const mapRef = useRef<Map>(null);
 
   // initialize map on first render
   useEffect(() => {
@@ -58,7 +59,7 @@ function OpenlayersMap({
     });
 
     const initFeatureLayer = new VectorLayer({ source: new VectorSource({ features: kantone }) });
-    setFeatureLayer(initFeatureLayer);
+    featureLayerRef.current = initFeatureLayer;
     mapRef.current = new Map({
       target: "openlayers-container",
       layers: [initFeatureLayer],
@@ -104,22 +105,22 @@ function OpenlayersMap({
       }
     });
     mapRef.current.addInteraction(selectInteraction);
-    setSelectInteraction(selectInteraction);
+    selectInteractionRef.current = selectInteraction;
   }, [featureCollection, selectedFeatureID, setSelectedFeatureID]);
 
   // set selected feature on map
   useEffect(() => {
     // check for initialisation
-    if (!selectInteraction || !featureLayer || !mapRef.current) return;
+    if (!selectInteractionRef.current || !featureLayerRef.current || !mapRef.current) return;
     // clear selected features, otherwise it will add selected feature to existing ones
     // this should not be necessary since the "multi" property of the select interaction is false by default...
-    selectInteraction.getFeatures().clear();
-    const source = featureLayer.getSource();
+    selectInteractionRef.current.getFeatures().clear();
+    const source = featureLayerRef.current.getSource();
     if (!source) return;
     // get selected feature
     const selectedFeature = source.getFeatures().find((f) => f.getId() === selectedFeatureID);
     if (selectedFeature) {
-      selectInteraction.getFeatures().push(selectedFeature);
+      selectInteractionRef.current.getFeatures().push(selectedFeature);
       const geometry = selectedFeature.getGeometry();
       if (geometry instanceof SimpleGeometry) {
         mapRef.current.getView().fit(geometry, {
@@ -130,12 +131,14 @@ function OpenlayersMap({
     } else if (featureCollection.features.length) {
       // if source has features
       const extent = source.getExtent();
-      mapRef.current.getView().fit(extent, {
-        padding: [100, 100, 100, 100],
-        duration: 600,
-      });
+      if (extent) {
+        mapRef.current.getView().fit(extent, {
+          padding: [100, 100, 100, 100],
+          duration: 600,
+        });
+      }
     }
-  }, [selectInteraction, selectedFeatureID, featureLayer, featureCollection]);
+  }, [selectInteractionRef, selectedFeatureID, featureLayerRef, featureCollection]);
 
   return <div id="openlayers-container" />;
 }

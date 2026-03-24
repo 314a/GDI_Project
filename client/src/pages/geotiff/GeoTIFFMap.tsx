@@ -8,7 +8,7 @@ interface GeoTIFFMapProps {
 }
 
 function GeoTIFFMap({ opacity }: GeoTIFFMapProps) {
-  const mapRef = useRef<maplibregl.Map>();
+  const mapRef = useRef<maplibregl.Map>(null);
 
   // initialize map on first render
   useEffect(() => {

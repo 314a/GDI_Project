@@ -26,7 +26,7 @@ function MaplibreMap({
 }: MaplibreMapProps) {
   // create state ref that can be accessed in callbacks
   const mapRef = useRef<MapRef>(null);
-  const prevSelectedFeatureID = useRef<number | undefined>();
+  const prevSelectedFeatureID = useRef<number>(undefined);
   // cache min and max values for style calculation
   const maxFlaeche = useMemo(
     () => Math.max(...featureCollection.features.map((f) => f.properties.kantonsflaeche)),
@@ -72,9 +72,7 @@ function MaplibreMap({
     // check for initialisation
     if (mapRef.current) {
       // get selected feature
-      const selectedFeature = featureCollection.features.find(
-        (f) => f.id === selectedFeatureID,
-      );
+      const selectedFeature = featureCollection.features.find((f) => f.id === selectedFeatureID);
       handleSelectionChange(selectedFeature);
     }
   }, [handleSelectionChange, selectedFeatureID, featureCollection]);
