@@ -47,10 +47,14 @@ function FeatureTable({ features, selectedFeatureID, setSelectedFeatureID }: Fea
         pageSizeOptions={[5]}
         keepNonExistentRowsSelected
         filterModel={{ items: [{ field: "id", operator: "=", value: selectedFeatureID }] }}
-        rowSelectionModel={selectedFeatureID === undefined ? [] : [selectedFeatureID]}
+        rowSelectionModel={
+          selectedFeatureID === undefined
+            ? undefined
+            : { type: "include", ids: new Set([selectedFeatureID]) }
+        }
         sortModel={[{ field: "id", sort: "asc" }]}
         onRowSelectionModelChange={(selectionModel: GridRowSelectionModel) => {
-          const firstSelected = selectionModel[0];
+          const firstSelected = selectionModel.ids.values().next().value;
           if (firstSelected === undefined) {
             setSelectedFeatureID(undefined);
           } else {
